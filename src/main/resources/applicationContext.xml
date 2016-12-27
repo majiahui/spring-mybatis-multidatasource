@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+       Copyright ${license.git.copyrightYears} the original author or authors.
+
+       Licensed under the Apache License, Version 2.0 (the "License");
+       you may not use this file except in compliance with the License.
+       You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+       Unless required by applicable law or agreed to in writing, software
+       distributed under the License is distributed on an "AS IS" BASIS,
+       WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+       See the License for the specific language governing permissions and
+       limitations under the License.
+
+-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:mybatis="http://mybatis.org/schema/mybatis-spring"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:task="http://www.springframework.org/schema/task"
+       xsi:schemaLocation="http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+     http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+     http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc.xsd
+     http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd
+     http://mybatis.org/schema/mybatis-spring http://mybatis.org/schema/mybatis-spring.xsd
+     http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd
+     http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task.xsd">
+
+	<bean id="propertyConfigurer"
+		class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+		<property name="locations">
+			<list>
+				<value>classpath*:database.properties</value>
+			</list>
+		</property>
+	</bean>
+
+	<bean id="dataSource1" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close">
+		<property name="driverClassName" value="${jdbc.driverClassName}" />
+		<property name="url" value="${jdbc.url}" />
+		<property name="username" value="${jdbc.username}" />
+		<property name="password" value="${jdbc.password}" />
+	</bean>
+	
+	<bean id="dataSource2" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close">
+		<property name="driverClassName" value="${jdbc.driverClassName.2}" />
+		<property name="url" value="${jdbc.url.2}" />
+		<property name="username" value="${jdbc.username.2}" />
+		<property name="password" value="${jdbc.password.2}" />
+	</bean>
+
+	<bean id="dataSource" class="helper.DynamicDataSource">
+		<property name="targetDataSources">
+			<map key-type="java.lang.String">
+				<entry value-ref="dataSource1" key="dataSourceA" />
+				<entry value-ref="dataSource2" key="dataSourceB" />
+			</map>
+		</property>
+		<property name="defaultTargetDataSource" ref="dataSource1" />
+	</bean>
+
+    <!-- transaction manager, use DataSourceTransactionManager" for JDBC local tx -->
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource" />
+    </bean>
+
+    <!-- enable component scanning and autowire (beware that this does not enable mapper scanning!) -->    
+    <context:component-scan base-package="service" />
+    <context:component-scan base-package="service2" />
+    <context:component-scan base-package="helper" />
+
+    <!-- enable transaction demarcation with annotations -->
+    <tx:annotation-driven />
+
+    <!-- define the SqlSessionFactory -->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="dataSource" ref="dataSource" />
+        <property name="typeAliasesPackage" value="entity" />
+    </bean>
+
+    <!-- scan for mappers and let them be autowired -->
+    <mybatis:scan base-package="mapper" />
+    
+    <aop:aspectj-autoproxy />
+    
+    <task:annotation-driven />
+    <task:executor id="executor" pool-size="0-5" keep-alive="1800"/>
+    
+    <bean id="loggingAspect" class="aspect.LoggingAspect" />
+</beans>
